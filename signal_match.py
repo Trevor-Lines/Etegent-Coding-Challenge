@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 
 import numpy as np
@@ -29,11 +30,11 @@ def evaluate_signal_match(ref_values, exp_values):
 	"""
 	Evaluate the match between two signals using R^2 score
 	Args:
-		ref_values (np.array): reference signal values
-		exp_values (np.array): experimental signal values
+		ref_values (np.array): reference signal values.
+		exp_values (np.array): experimental signal values.
 	Returns:
-		float: R^2 score between the two signals
-		float: time offset that gives the best match
+		tuple (float, int): R^2 score between the two signals and time offset that gives the best match,
+		time offset that gives the best match.
 	"""
 	exp_scores = []
 
@@ -57,30 +58,10 @@ def evaluate_signal_match(ref_values, exp_values):
 	return exp_scores[best_offset], best_offset
 
 
-def evaluate_signal_match_rel_error(truth_values, measured_values):
-	"""
-	Evaluate the match between two signals using relative error
-	Args:
-		truth_values (np.array): true signal values
-		measured_values (np.array): measured signal values
-	Returns:
-		float: R^2 score between the two signals
-		float: time offset that gives the best match
-	"""
-	exp_scores = []
-
-	# Apply all possible offsets
-	for time_offset in range(50):
-		truth_slice_values = truth_values[time_offset : time_offset + 50]
-
-		exp_scores.append(1 - np.average(relative_errors))
-
-	# return best time offset for exp signal and its relative error
-	best_offset = np.argmax(exp_scores)
-	return exp_scores[best_offset], best_offset
-
-
 if __name__ == "__main__":
+	# Track program runtime
+	program_start_time = time.perf_counter()
+	run_times = []
 
 	# Fetch Signal Data
 	reference_files = sorted(get_files(REF_DATA))
@@ -96,7 +77,7 @@ if __name__ == "__main__":
 			go.Scatter(
 				x=ref_df[TIME_COL],
 				y=ref_df[VALUE_COL],
-				name="Reference Signal",
+				name="Ref Signal",
 			)
 		)
 
@@ -104,27 +85,32 @@ if __name__ == "__main__":
 		ref_values = ref_df[VALUE_COL].to_numpy()
 		ref_scores, time_offsets = [], []
 
-		# Load in experimental signals
+		# Load in experimental signals and evaluate match to reference signal
 		for exp_file in experimental_files:
+			exp_start_time = time.perf_counter()
+
 			exp_df = pd.read_csv(EXP_DATA + exp_file)
 			exp_score, best_offset = evaluate_signal_match(
 				ref_values, exp_df[VALUE_COL].to_numpy()
 			)
 
+			# Store best score and time offset for experimental signal
 			time_offsets.append(best_offset)
 			ref_scores.append(exp_score)
 
+			# Track runtime for each signal
+			exp_end_time = time.perf_counter()
+			run_times.append(exp_end_time - exp_start_time)
+
 		# Find top 2 signal match
-		for _, best_match_idx in enumerate(
-			reversed(np.argpartition(ref_scores, -2)[-2:])
-		):
+		for best_match_idx in reversed(np.argpartition(ref_scores, -2)[-2:]):
 			exp_df = pd.read_csv(EXP_DATA + experimental_files[best_match_idx])
 			percentage_fit = ref_scores[best_match_idx] * 100
 			ref_fig.add_trace(
 				go.Scatter(
 					x=exp_df[TIME_COL] + time_offsets[best_match_idx],
 					y=exp_df[VALUE_COL],
-					name=f"Experimental Signal {best_match_idx}: {percentage_fit:.2f}%",
+					name=f"Exp Signal {best_match_idx}: {percentage_fit:.2f}%",
 				)
 			)
 
@@ -132,10 +118,14 @@ if __name__ == "__main__":
 			title="Top Two Measured Signals",
 			xaxis_title=TIME_COL,
 			yaxis_title=VALUE_COL,
+			hoverlabel={"namelength": -1},
 		)
 
 		# Save plot
 		ref_fig.write_html(PLOT_PATH + ref_file.split(".")[0] + ".html")
 
-		# print(p1_match, p2_match)
-		# print(p1_diffs, p2_diffs)
+	program_end_time = time.perf_counter()
+	print(f"Average runtime per experimental signal: {np.mean(run_times):.4f} seconds")
+	print(
+		f"Total runtime of program: {program_end_time - program_start_time:.4f} seconds"
+	)

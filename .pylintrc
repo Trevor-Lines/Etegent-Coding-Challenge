@@ -4,3 +4,4 @@ indent-string='\t'
 [MASTER]
 disable=
 	C0114, # missing-module-docstring
+	W0621, # redefined-outer-name

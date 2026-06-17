@@ -35,4 +35,4 @@ This generates one HTML plot per reference signal in `data/plots/`, each showing
 - Weakest top-2 R² fit observed: 78.75% (Reference 3 vs. Experimental 12)
 
 ## Recomendations
-Having more time I think this could be a python application or web app with a UI to upload reference and experimental signals. Additionally outputs could be added to .csv or .xlsx format to show the top signals along with their r^2 score. Additionnally further investigations could be made to improve runtime.
+Having more time I think this could be a python application or web app with a UI to upload reference and experimental signals. Additionally outputs could be added to .csv or .xlsx format to show the top signals along with their r^2 score. Further investigations could be made to improve runtime.

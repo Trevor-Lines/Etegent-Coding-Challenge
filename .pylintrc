@@ -1,0 +1,6 @@
+[FORMAT]
+indent-string='\t'
+
+[MASTER]
+disable=
+	C0114, # missing-module-docstring

@@ -64,65 +64,71 @@ if __name__ == "__main__":
 	run_times = []
 
 	# Fetch Signal Data
-	reference_files = sorted(get_files(REF_DATA))
 	experimental_files = sorted(get_files(EXP_DATA))
+	reference_files = sorted(get_files(REF_DATA))
 
 	# Load in reference signal
-	for ref_file in reference_files:
-		ref_fig = go.Figure()
-		ref_df = pd.read_csv(REF_DATA + ref_file)
+	for exp_file in experimental_files:
+		exp_start_time = time.perf_counter()
 
-		# Add ref signal to plot
-		ref_fig.add_trace(
-			go.Scatter(
-				x=ref_df[TIME_COL],
-				y=ref_df[VALUE_COL],
-				name="Ref Signal",
-			)
-		)
+		print(exp_file)
 
-		# Split values into halves
-		ref_values = ref_df[VALUE_COL].to_numpy()
-		ref_scores, time_offsets = [], []
+		exp_df = pd.read_csv(EXP_DATA + exp_file)
+		exp_fig = go.Figure()
+
+		exp_values = exp_df[VALUE_COL].to_numpy()
+		exp_scores, time_offsets = [], []
 
 		# Load in experimental signals and evaluate match to reference signal
-		for exp_file in experimental_files:
-			exp_start_time = time.perf_counter()
+		for ref_file in reference_files:
+			ref_df = pd.read_csv(REF_DATA + ref_file)
 
-			exp_df = pd.read_csv(EXP_DATA + exp_file)
-			exp_score, best_offset = evaluate_signal_match(
-				ref_values, exp_df[VALUE_COL].to_numpy()
+			ref_score, best_offset = evaluate_signal_match(
+				ref_df[VALUE_COL].to_numpy(), exp_values
 			)
 
 			# Store best score and time offset for experimental signal
 			time_offsets.append(best_offset)
-			ref_scores.append(exp_score)
-
-			# Track runtime for each signal
-			exp_end_time = time.perf_counter()
-			run_times.append(exp_end_time - exp_start_time)
+			exp_scores.append(ref_score)
 
 		# Find top 2 signal match
-		for best_match_idx in reversed(np.argpartition(ref_scores, -2)[-2:]):
-			exp_df = pd.read_csv(EXP_DATA + experimental_files[best_match_idx])
-			percentage_fit = ref_scores[best_match_idx] * 100
-			ref_fig.add_trace(
+		for best_match_idx in reversed(np.argpartition(exp_scores, -2)[-2:]):
+			ref_df = pd.read_csv(REF_DATA + reference_files[best_match_idx])
+			percentage_fit = exp_scores[best_match_idx] * 100
+
+			exp_fig.add_trace(
 				go.Scatter(
-					x=exp_df[TIME_COL] + time_offsets[best_match_idx],
-					y=exp_df[VALUE_COL],
-					name=f"Exp Signal {best_match_idx}: {percentage_fit:.2f}%",
+					x=ref_df[TIME_COL],
+					y=ref_df[VALUE_COL],
+					name=f"Ref Signal {best_match_idx}: {percentage_fit:.2f}%",
+					legendgroup=str(best_match_idx),
+					line={"color": "blue"},
 				)
 			)
 
-		ref_fig.update_layout(
-			title="Top Two Measured Signals",
+			exp_fig.add_trace(
+				go.Scatter(
+					x=exp_df[TIME_COL] + time_offsets[best_match_idx],
+					y=exp_df[VALUE_COL],
+					name=f"Exp Signal for Exp Signal {best_match_idx}",
+					legendgroup=str(best_match_idx),
+					line={"color": "red"},
+				)
+			)
+
+		exp_fig.update_layout(
+			title="Top Two Reference Signals",
 			xaxis_title=TIME_COL,
 			yaxis_title=VALUE_COL,
 			hoverlabel={"namelength": -1},
 		)
 
 		# Save plot
-		ref_fig.write_html(PLOT_PATH + ref_file.split(".")[0] + ".html")
+		exp_fig.write_html(PLOT_PATH + exp_file.split(".")[0] + ".html")
+
+		# Track runtime for each signal
+		exp_end_time = time.perf_counter()
+		run_times.append(exp_end_time - exp_start_time)
 
 	program_end_time = time.perf_counter()
 	print(f"Average runtime per experimental signal: {np.mean(run_times):.4f} seconds")

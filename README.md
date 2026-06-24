@@ -6,7 +6,7 @@ This script compares each experimentally observed signal against a library of re
 
 My approach was to start small, looking at a slice of the data first to work out a methodology for comparing experimental signals to reference signals. I initially calculated the relative error at each (shifted) time index between a reference and an experimental signal, then averaged that error across the signal to get a single match score, and used that to rank and plot the top two matches per experimental signal.
 
-The relative error approach passed an initial eye test, but once I added a percentage fit metric, I saw the fits were low (at times ~50%) even for visually strong matches. That sent me looking for a better scoring approach, and I landed on R², a standard goodness-of-fit measurement I'm used to from ML work. Switching to R² significantly improved the fit scores into the high 90s in most cases, and around 78% at worst for the top 2 matches.
+The relative error approach passed an initial eye test, but once I added a percentage fit metric, I saw the fits were low (at times ~50%) even for visually strong matches. That sent me looking for a better scoring approach, and I landed on R², a standard goodness-of-fit measurement I'm used to from ML work. Switching to R² significantly improved the fit scores.
 
 ## How to Run
 

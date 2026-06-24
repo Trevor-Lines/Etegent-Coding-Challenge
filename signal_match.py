@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+from natsort import natsorted
 from sklearn.metrics import r2_score
 
 TIME_COL = "Time"
@@ -61,17 +62,17 @@ def evaluate_signal_match(ref_values, exp_values):
 if __name__ == "__main__":
 	# Track program runtime
 	program_start_time = time.perf_counter()
-	run_times = []
+
+	data_rows, run_times = [], []
 
 	# Fetch Signal Data
-	experimental_files = sorted(get_files(EXP_DATA))
+	experimental_files = natsorted(get_files(EXP_DATA))
 	reference_files = sorted(get_files(REF_DATA))
 
-	# Load in reference signal
+	# Load the experimental signal
 	for exp_file in experimental_files:
 		exp_start_time = time.perf_counter()
-
-		print(exp_file)
+		exp_name = exp_file.split(".")[0]
 
 		exp_df = pd.read_csv(EXP_DATA + exp_file)
 		exp_fig = go.Figure()
@@ -91,11 +92,13 @@ if __name__ == "__main__":
 			time_offsets.append(best_offset)
 			exp_scores.append(ref_score)
 
-		# Find top 2 signal match
+		# Get the indices of the top 2 scores
+		matches, scores = [], []
 		for best_match_idx in reversed(np.argpartition(exp_scores, -2)[-2:]):
 			ref_df = pd.read_csv(REF_DATA + reference_files[best_match_idx])
 			percentage_fit = exp_scores[best_match_idx] * 100
 
+			# Add the reference signal to the plot
 			exp_fig.add_trace(
 				go.Scatter(
 					x=ref_df[TIME_COL],
@@ -106,6 +109,7 @@ if __name__ == "__main__":
 				)
 			)
 
+			# Add the experimental signal to the plot
 			exp_fig.add_trace(
 				go.Scatter(
 					x=exp_df[TIME_COL] + time_offsets[best_match_idx],
@@ -116,6 +120,10 @@ if __name__ == "__main__":
 				)
 			)
 
+			# Store the best match and its score
+			matches.append(best_match_idx)
+			scores.append(f"{percentage_fit:.2f}")
+
 		exp_fig.update_layout(
 			title="Top Two Reference Signals",
 			xaxis_title=TIME_COL,
@@ -124,12 +132,33 @@ if __name__ == "__main__":
 		)
 
 		# Save plot
-		exp_fig.write_html(PLOT_PATH + exp_file.split(".")[0] + ".html")
+		exp_fig.write_html(PLOT_PATH + exp_name + ".html")
 
 		# Track runtime for each signal
 		exp_end_time = time.perf_counter()
-		run_times.append(exp_end_time - exp_start_time)
+		exp_run_time = exp_end_time - exp_start_time
+		run_times.append(exp_run_time)
 
+		# Store data for CSV
+		data_rows.append([exp_name, exp_run_time])
+		for match, score in zip(matches, scores):
+			data_rows[-1].append(match)
+			data_rows[-1].append(score)
+
+	# Save runtime data to CSV
+	pd.DataFrame(
+		data_rows,
+		columns=[
+			"Signal Name",
+			"Runtime (s)",
+			"Best Match 1",
+			"Match 1 Fit (%)",
+			"Best Match 2",
+			"Match 2 Fit (%)",
+		],
+	).to_csv("data/summary.csv", index=False)
+
+	# Calculate and print average runtime
 	program_end_time = time.perf_counter()
 	print(f"Average runtime per experimental signal: {np.mean(run_times):.4f} seconds")
 	print(
